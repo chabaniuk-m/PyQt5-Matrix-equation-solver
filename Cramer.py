@@ -35,4 +35,3 @@ if __name__ == "__main__":
     # ])
     # _b = np.array([30, 150, 110])
     print(cramer(_A, _b))
-
