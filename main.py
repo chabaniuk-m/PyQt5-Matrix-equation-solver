@@ -2,12 +2,14 @@ import sys
 
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFrame, QLabel, QGroupBox, \
-                            QLineEdit, QPushButton, QRadioButton, QVBoxLayout
+    QLineEdit, QPushButton, QRadioButton, QVBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
 from PyQt5 import uic
 
 from Cramer import cramer
+from Seidal import seidal
+from SimpleIteration import simple_iteration
 
 
 class Matrix(QMainWindow):
@@ -20,30 +22,31 @@ class Matrix(QMainWindow):
         super().__init__()
         self.line = None
         uic.loadUi('matrix.ui', self)
-        self.cells: list[list[QLineEdit]] = []                  # поля вводу елементів матриці
-        self.free: list[QLineEdit] = []                         # вектор вільних членів
-        self.setFixedSize(self.width(), self.height())          # забороняємо розтягувати вікно
-        self.n = 0                                              # розмірність матриці
-        self.matrix: list[list[float]] = []                     # матриця коефіцієнтів
-        self.b: list[float] = []                                # вектор вільних членів
+        self.cells: list[list[QLineEdit]] = []  # поля вводу елементів матриці
+        self.free: list[QLineEdit] = []  # вектор вільних членів
+        self.setFixedSize(self.width(), self.height())  # забороняємо розтягувати вікно
+        self.n = 0  # розмірність матриці
+        self.matrix: list[list[float]] = []  # матриця коефіцієнтів
+        self.b: list[float] = []  # вектор вільних членів
         self.group: QGroupBox = self.gb
         self.frame: QFrame = self.matrix_container
         self.frame.setLayout(QVBoxLayout())
-        self.solution: QLabel = self.sol                        # поле для виводу результату
+        self.solution: QLabel = self.sol  # поле для виводу результату
         self.solution.setAlignment(Qt.AlignCenter)
-        self.input_n: QLineEdit = self.in_n                     # поле для введення розмірності матриці
+        self.input_n: QLineEdit = self.in_n  # поле для введення розмірності матриці
         self.input_n.setValidator(
-            QtGui.QIntValidator(0, 1000))                       # перевірка значення для розмірності матриці
+            QtGui.QIntValidator(0, 1000))  # перевірка значення для розмірності матриці
         self.input_n_btn: QPushButton = self.in_n_btn
         self.epsilon_lbl: QLabel = self.eps_lbl
-        self.input_epsilon: QLineEdit = self.in_eps             # поле для введення точності
+        self.input_epsilon: QLineEdit = self.in_eps  # поле для введення точності
         self.input_epsilon.setValidator(
             QtGui.QDoubleValidator(0, 1, 9,
-            notation=QtGui.QDoubleValidator.StandardNotation))
-        self.input_epsilon.setPlaceholderText("0.001")          # задаємо значення за замовчуванням для точності
+                                   notation=QtGui.QDoubleValidator.StandardNotation))
+        self.input_epsilon.setPlaceholderText("0.001")  # задаємо значення за замовчуванням для точності
         self.epsilon: float = 0.001
-        self.epsilon_btn: QPushButton = self.eps_btn            # кнопка, яка змінює задану точність
-        self.hide_epsilon()                                     # за замовчуванням не просимо ввести точність
+        self.epsilon_btn: QPushButton = self.eps_btn  # кнопка, яка змінює задану точність
+        self.epsilon_btn.clicked.connect(self.set_epsilon)
+        self.hide_epsilon()  # за замовчуванням не просимо ввести точність
         self.method = ""
         self.kramer: QRadioButton = self.kr
         self.simple_iteration: QRadioButton = self.si
@@ -135,9 +138,17 @@ class Matrix(QMainWindow):
 
     def hide_epsilon(self):
         self.__set_epsilon_visible(False)
+        self.input_epsilon.setText("")
 
     def show_epsilon(self):
         self.__set_epsilon_visible(True)
+        self.epsilon = 1e-3
+
+    def set_epsilon(self):
+        self.epsilon = float(self.input_epsilon.text()) \
+            if self.input_epsilon.text() != "" \
+            else 1e-3
+        print(f"epsilon is set to {self.epsilon}")
 
     def set_kramer(self):
         self.method = 'k'
@@ -175,8 +186,21 @@ class Matrix(QMainWindow):
             d = np.linalg.det(A)
             if d == 0:
                 sol = "Неможливо розв'язати, оскільки визначник = 0"
+
             if self.kramer.isChecked():
                 sol = Matrix._pretty_solution(cramer(A, b))
+            elif self.simple_iteration.isChecked():
+                x = simple_iteration(A, b, self.epsilon)
+                sol = Matrix._pretty_solution(x) \
+                    if x \
+                    else "Матриця не відповідає умові діагональної переваги"
+            elif self.seidel.isChecked():
+                x = seidal(A, b, self.epsilon)
+                sol = Matrix._pretty_solution(x) \
+                    if x \
+                    else "Матриця не відповідає умові діагональної переваги"
+            else:
+                sol = "Оберіть метод для розв'язку системи"
 
         print(f"solutions: {sol}")
         self.solution.setText(sol)
@@ -192,4 +216,3 @@ if __name__ == '__main__':
         sys.exit(app.exec_())
     except SystemExit:
         print("Closing window...")
-
